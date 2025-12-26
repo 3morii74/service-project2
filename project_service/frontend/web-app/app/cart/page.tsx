@@ -20,7 +20,7 @@ export default function Cart() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     setIsLoggedIn(!!token);
     loadCart();
   }, []);
@@ -32,13 +32,13 @@ export default function Cart() {
 
   const updateQuantity = (productId: string, newQuantity: number) => {
     if (newQuantity < 1) return;
-    
+
     const updatedCart = cart.map(item =>
       item.productId === productId
         ? { ...item, quantity: newQuantity }
         : item
     );
-    
+
     setCart(updatedCart);
     localStorage.setItem('cart', JSON.stringify(updatedCart));
   };
@@ -47,6 +47,7 @@ export default function Cart() {
     const updatedCart = cart.filter(item => item.productId !== productId);
     setCart(updatedCart);
     localStorage.setItem('cart', JSON.stringify(updatedCart));
+    showToast({ message: 'Item removed from cart', type: 'success' });
   };
 
   const clearCart = () => {
@@ -59,7 +60,7 @@ export default function Cart() {
   };
 
   const handleCheckout = () => {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     if (!token) {
       showToast({ message: 'Please login to checkout', type: 'warning' });
       setTimeout(() => router.push('/login'), 1500);
@@ -69,7 +70,7 @@ export default function Cart() {
       showToast({ message: 'Your cart is empty', type: 'info' });
       return;
     }
-    
+
     router.push('/checkout');
   };
 
@@ -95,7 +96,7 @@ export default function Cart() {
             <p style={{ color: '#6b7280', marginBottom: '2rem' }}>
               Add some products to get started!
             </p>
-            <button 
+            <button
               className="btn btn-primary"
               onClick={() => router.push('/products')}
             >
@@ -108,9 +109,9 @@ export default function Cart() {
               {cart.map((item) => (
                 <div key={item.productId} className="cart-item">
                   <div className="cart-item-image">📦</div>
-                  
+
                   <div className="cart-item-details">
-                    <h3 
+                    <h3
                       className="cart-item-name"
                       onClick={() => router.push(`/products/${item.productId}`)}
                     >
@@ -120,14 +121,14 @@ export default function Cart() {
                   </div>
 
                   <div className="cart-item-quantity">
-                    <button 
+                    <button
                       className="quantity-btn"
                       onClick={() => updateQuantity(item.productId, item.quantity - 1)}
                     >
                       −
                     </button>
                     <span className="quantity-display">{item.quantity}</span>
-                    <button 
+                    <button
                       className="quantity-btn"
                       onClick={() => updateQuantity(item.productId, item.quantity + 1)}
                     >
@@ -139,7 +140,7 @@ export default function Cart() {
                     ${(item.price * item.quantity).toFixed(2)}
                   </div>
 
-                  <button 
+                  <button
                     className="cart-item-remove"
                     onClick={() => removeItem(item.productId)}
                     title="Remove item"
@@ -149,7 +150,7 @@ export default function Cart() {
                 </div>
               ))}
 
-              <button 
+              <button
                 className="btn btn-secondary"
                 onClick={clearCart}
                 style={{ marginTop: '1rem' }}
@@ -160,7 +161,7 @@ export default function Cart() {
 
             <div className="cart-summary">
               <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem' }}>Order Summary</h2>
-              
+
               <div className="summary-row">
                 <span>Subtotal ({cart.length} items):</span>
                 <span>${calculateTotal().toFixed(2)}</span>
@@ -183,7 +184,7 @@ export default function Cart() {
                 <span>${(calculateTotal() * 1.1).toFixed(2)}</span>
               </div>
 
-              <button 
+              <button
                 className="btn btn-primary"
                 onClick={handleCheckout}
                 style={{ width: '100%', marginTop: '1.5rem', fontSize: '1.1rem' }}
@@ -191,7 +192,7 @@ export default function Cart() {
                 Proceed to Checkout
               </button>
 
-              <button 
+              <button
                 className="btn btn-secondary"
                 onClick={() => router.push('/products')}
                 style={{ width: '100%', marginTop: '1rem' }}

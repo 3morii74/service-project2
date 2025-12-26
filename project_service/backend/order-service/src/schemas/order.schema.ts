@@ -22,10 +22,10 @@ export class Order {
   @Prop({ required: true })
   totalAmount: number;
 
-  @Prop({ 
-    type: String, 
+  @Prop({
+    type: String,
     enum: ['pending', 'processing', 'shipped', 'delivered', 'cancelled'],
-    default: 'pending' 
+    default: 'pending'
   })
   status: string;
 
@@ -36,6 +36,7 @@ export class Order {
     state: string;
     zipCode: string;
     country: string;
+    phone: string;
   };
 
   @Prop()

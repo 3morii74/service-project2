@@ -25,10 +25,11 @@ export default function Checkout() {
     state: '',
     zipCode: '',
     country: '',
+    phone: '',
   });
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     if (!token) {
       router.push('/login');
       return;
@@ -59,11 +60,11 @@ export default function Checkout() {
       };
 
       const response = await orderApi.create(orderData);
-      
+
       if (response.data.success) {
         // Clear cart
         localStorage.setItem('cart', JSON.stringify([]));
-        
+
         showToast({ message: 'Order placed successfully!', type: 'success' });
         setTimeout(() => router.push('/orders'), 1500);
       }
@@ -94,7 +95,7 @@ export default function Checkout() {
         <div className="checkout-container">
           <div className="checkout-form">
             <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem' }}>Shipping Address</h2>
-            
+
             <form onSubmit={handleSubmit}>
               <div className="form-group">
                 <label className="form-label">Street Address</label>
@@ -153,18 +154,35 @@ export default function Checkout() {
                 />
               </div>
 
-              <button 
-                type="submit" 
-                className="btn btn-primary" 
+              <div className="form-group">
+                <label className="form-label">Phone Number</label>
+                <input
+                  type="tel"
+                  className="form-input"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="01012345678 or +201012345678"
+                  pattern="^(\+20|0)?1[0125]\d{8}$"
+                  title="Please enter a valid Egyptian phone number (11 digits starting with 01, or with +20)"
+                  required
+                />
+                <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>
+                  Required for delivery contact (Egyptian mobile: 01X XXXX XXXX)
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                className="btn btn-primary"
                 style={{ width: '100%', marginTop: '1rem' }}
                 disabled={loading}
               >
                 {loading ? 'Placing Order...' : 'Place Order'}
               </button>
 
-              <button 
+              <button
                 type="button"
-                className="btn btn-secondary" 
+                className="btn btn-secondary"
                 style={{ width: '100%', marginTop: '1rem' }}
                 onClick={() => router.push('/cart')}
               >
@@ -175,7 +193,7 @@ export default function Checkout() {
 
           <div className="checkout-summary">
             <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem' }}>Order Summary</h2>
-            
+
             <div className="order-items">
               {cart.map((item) => (
                 <div key={item.productId} className="order-item">

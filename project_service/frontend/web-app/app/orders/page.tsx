@@ -11,7 +11,7 @@ export default function Orders() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     if (!token) {
       router.push('/login');
       return;
@@ -56,8 +56,8 @@ export default function Orders() {
             <p style={{ fontSize: '1.25rem', color: '#6b7280' }}>
               You don't have any orders yet.
             </p>
-            <button 
-              className="btn btn-primary" 
+            <button
+              className="btn btn-primary"
               style={{ marginTop: '1rem' }}
               onClick={() => router.push('/products')}
             >

@@ -20,9 +20,10 @@ export default function AdminCategories() {
   const [imagePreview, setImagePreview] = useState<string>('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [editingCategory, setEditingCategory] = useState<any>(null); // Track category being edited
 
   useEffect(() => {
-    const userStr = localStorage.getItem('user');
+    const userStr = sessionStorage.getItem('user');
     if (!userStr) {
       router.push('/login');
       return;
@@ -62,6 +63,19 @@ export default function AdminCategories() {
     reader.readAsDataURL(file);
   };
 
+  const handleEdit = (category: any) => {
+    setEditingCategory(category);
+    setFormData({
+      name: category.name,
+      description: category.description || '',
+      image: category.image || '',
+    });
+    // Don't set preview for existing image - we'll show it separately
+    setSelectedFile(null);
+    setImagePreview('');
+    setShowForm(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -72,26 +86,41 @@ export default function AdminCategories() {
       let imagePath = '';
 
       if (selectedFile) {
+        // Upload new image
         const fileList = new DataTransfer();
         fileList.items.add(selectedFile);
         const uploadResponse = await uploadApi.uploadImages(fileList.files);
         imagePath = uploadResponse.data.data.paths[0];
+      } else if (editingCategory) {
+        // Keep existing image if no new image selected
+        imagePath = editingCategory.image || '';
       }
 
-      await categoryApi.create({
+      const categoryData = {
         name: formData.name,
         description: formData.description,
         image: imagePath,
-      });
+      };
 
-      setSuccess('Category created successfully!');
+      if (editingCategory) {
+        // Update existing category
+        await categoryApi.update(editingCategory._id, categoryData);
+        setSuccess('Category updated successfully!');
+      } else {
+        // Create new category
+        await categoryApi.create(categoryData);
+        setSuccess('Category created successfully!');
+      }
+
+      // Reset form
       setFormData({ name: '', description: '', image: '' });
       setSelectedFile(null);
       setImagePreview('');
+      setEditingCategory(null);
       setShowForm(false);
       loadCategories();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create category');
+      setError(err.response?.data?.message || `Failed to ${editingCategory ? 'update' : 'create'} category`);
     } finally {
       setUploading(false);
     }
@@ -152,7 +181,21 @@ export default function AdminCategories() {
         )}
 
         <div style={{ marginBottom: '2rem' }}>
-          <button onClick={() => setShowForm(!showForm)} className="btn btn-primary">
+          <button
+            onClick={() => {
+              if (showForm) {
+                // Cancel - reset everything
+                setShowForm(false);
+                setEditingCategory(null);
+                setFormData({ name: '', description: '', image: '' });
+                setSelectedFile(null);
+                setImagePreview('');
+              } else {
+                setShowForm(true);
+              }
+            }}
+            className="btn btn-primary"
+          >
             {showForm ? 'Cancel' : '+ Add New Category'}
           </button>
         </div>
@@ -160,7 +203,7 @@ export default function AdminCategories() {
         {showForm && (
           <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '0.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '2rem' }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1.5rem' }}>
-              Add New Category
+              {editingCategory ? 'Edit Category' : 'Add New Category'}
             </h2>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
@@ -186,6 +229,24 @@ export default function AdminCategories() {
 
               <div className="form-group">
                 <label className="form-label">Category Image</label>
+
+                {/* Show existing image when editing */}
+                {editingCategory && editingCategory.image && !selectedFile && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+                      Current Image:
+                    </p>
+                    <img
+                      src={editingCategory.image}
+                      alt="Current category"
+                      style={{ width: '200px', height: '200px', objectFit: 'cover', borderRadius: '0.5rem', border: '2px solid #e5e7eb' }}
+                    />
+                    <p style={{ fontSize: '0.75rem', color: '#6b7280', fontStyle: 'italic', marginTop: '0.5rem' }}>
+                      Upload a new image below to replace, or leave empty to keep current image.
+                    </p>
+                  </div>
+                )}
+
                 <input
                   type="file"
                   accept="image/*"
@@ -206,7 +267,7 @@ export default function AdminCategories() {
               )}
 
               <button type="submit" className="btn btn-primary" style={{ marginTop: '1rem' }} disabled={uploading}>
-                {uploading ? 'Creating...' : 'Create Category'}
+                {uploading ? (editingCategory ? 'Updating...' : 'Creating...') : (editingCategory ? 'Update Category' : 'Create Category')}
               </button>
             </form>
           </div>
@@ -243,13 +304,22 @@ export default function AdminCategories() {
                     <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
                       {category.description || 'No description'}
                     </p>
-                    <button
-                      onClick={() => handleDelete(category._id)}
-                      className="btn"
-                      style={{ backgroundColor: '#ef4444', color: 'white', padding: '0.5rem 1rem', fontSize: '0.875rem', width: '100%' }}
-                    >
-                      Delete
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        onClick={() => handleEdit(category)}
+                        className="btn"
+                        style={{ backgroundColor: '#3b82f6', color: 'white', padding: '0.5rem 1rem', fontSize: '0.875rem', flex: 1 }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(category._id)}
+                        className="btn"
+                        style={{ backgroundColor: '#ef4444', color: 'white', padding: '0.5rem 1rem', fontSize: '0.875rem', flex: 1 }}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}

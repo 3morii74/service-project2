@@ -27,7 +27,7 @@ export default function SectionManagement() {
   const [success, setSuccess] = useState('');
 
   useEffect(() => {
-    const userStr = localStorage.getItem('user');
+    const userStr = sessionStorage.getItem('user');
     if (!userStr) {
       router.push('/login');
       return;
@@ -187,7 +187,7 @@ export default function SectionManagement() {
         )}
 
         <div style={{ marginBottom: '2rem' }}>
-          <button 
+          <button
             onClick={() => {
               if (showForm && !editingSection) {
                 resetForm();
@@ -195,7 +195,7 @@ export default function SectionManagement() {
                 setShowForm(!showForm);
                 setEditingSection(null);
               }
-            }} 
+            }}
             className="btn btn-primary"
           >
             {showForm ? 'Cancel' : '+ Add New Section'}
@@ -318,8 +318,8 @@ export default function SectionManagement() {
                 <button type="submit" className="btn btn-primary">
                   {editingSection ? 'Update Section' : 'Create Section'}
                 </button>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={resetForm}
                   className="btn"
                   style={{ backgroundColor: '#6b7280', color: 'white' }}

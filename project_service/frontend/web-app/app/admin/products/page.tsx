@@ -24,10 +24,12 @@ export default function AdminProducts() {
   const [selectedCoverIndex, setSelectedCoverIndex] = useState<number>(0);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [editingProduct, setEditingProduct] = useState<any>(null); // Track product being edited
+
 
   useEffect(() => {
     // Check if user is admin
-    const userStr = localStorage.getItem('user');
+    const userStr = sessionStorage.getItem('user');
     if (!userStr) {
       router.push('/login');
       return;
@@ -85,6 +87,22 @@ export default function AdminProducts() {
     });
   };
 
+  const handleEdit = (product: any) => {
+    setEditingProduct(product);
+    setFormData({
+      name: product.name,
+      description: product.description,
+      price: product.price.toString(),
+      categoryId: product.categoryId || product.category?._id || '',
+      stock: product.stock.toString(),
+    });
+    // Don't set image previews for existing images - we'll show them separately
+    setSelectedFiles(null);
+    setImagePreviews([]);
+    setSelectedCoverIndex(0);
+    setShowForm(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -99,13 +117,14 @@ export default function AdminProducts() {
       if (selectedFiles && selectedFiles.length > 0) {
         const uploadResponse = await uploadApi.uploadImages(selectedFiles);
         imagePaths = uploadResponse.data.data.paths;
-        
-        // Use selected cover index to get the actual path
         coverImagePath = imagePaths[selectedCoverIndex] || imagePaths[0];
+      } else if (editingProduct) {
+        // Keep existing images if no new images selected
+        imagePaths = editingProduct.images || [];
+        coverImagePath = editingProduct.coverImage || '';
       }
 
-      // Create product with image paths
-      await productApi.create({
+      const productData = {
         name: formData.name,
         description: formData.description,
         price: parseFloat(formData.price),
@@ -113,9 +132,19 @@ export default function AdminProducts() {
         stock: parseInt(formData.stock),
         images: imagePaths,
         coverImage: coverImagePath,
-      });
+      };
 
-      setSuccess('Product created successfully!');
+      if (editingProduct) {
+        // Update existing product
+        await productApi.update(editingProduct._id, productData);
+        setSuccess('Product updated successfully!');
+      } else {
+        // Create new product
+        await productApi.create(productData);
+        setSuccess('Product created successfully!');
+      }
+
+      // Reset form
       setFormData({
         name: '',
         description: '',
@@ -126,10 +155,11 @@ export default function AdminProducts() {
       setSelectedFiles(null);
       setImagePreviews([]);
       setSelectedCoverIndex(0);
+      setEditingProduct(null);
       setShowForm(false);
       loadProducts();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create product');
+      setError(err.response?.data?.message || `Failed to ${editingProduct ? 'update' : 'create'} product`);
     } finally {
       setUploading(false);
     }
@@ -211,7 +241,24 @@ export default function AdminProducts() {
         {/* Add Product Button */}
         <div style={{ marginBottom: '2rem' }}>
           <button
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => {
+              if (showForm) {
+                // Cancel - reset everything
+                setShowForm(false);
+                setEditingProduct(null);
+                setFormData({
+                  name: '',
+                  description: '',
+                  price: '',
+                  categoryId: '',
+                  stock: '',
+                });
+                setSelectedFiles(null);
+                setImagePreviews([]);
+              } else {
+                setShowForm(true);
+              }
+            }}
             className="btn btn-primary"
           >
             {showForm ? 'Cancel' : '+ Add New Product'}
@@ -228,7 +275,7 @@ export default function AdminProducts() {
             marginBottom: '2rem',
           }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1.5rem' }}>
-              Add New Product
+              {editingProduct ? 'Edit Product' : 'Add New Product'}
             </h2>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
@@ -298,6 +345,58 @@ export default function AdminProducts() {
               {/* Image Upload */}
               <div className="form-group">
                 <label className="form-label">Product Images</label>
+
+                {/* Show existing images when editing */}
+                {editingProduct && editingProduct.images && editingProduct.images.length > 0 && !selectedFiles && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+                      Current Images:
+                    </p>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      {editingProduct.images.map((img: string, index: number) => (
+                        <div
+                          key={index}
+                          style={{
+                            position: 'relative',
+                            border: '2px solid #e5e7eb',
+                            borderRadius: '0.5rem',
+                            overflow: 'hidden',
+                            aspectRatio: '1',
+                          }}
+                        >
+                          <img
+                            src={img}
+                            alt={`Current ${index + 1}`}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                            }}
+                          />
+                          {editingProduct.coverImage === img && (
+                            <div style={{
+                              position: 'absolute',
+                              top: '0.25rem',
+                              right: '0.25rem',
+                              backgroundColor: '#4f46e5',
+                              color: 'white',
+                              padding: '0.125rem 0.25rem',
+                              borderRadius: '0.25rem',
+                              fontSize: '0.625rem',
+                              fontWeight: 'bold',
+                            }}>
+                              COVER
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <p style={{ fontSize: '0.75rem', color: '#6b7280', fontStyle: 'italic' }}>
+                      Upload new images below to replace current ones, or leave empty to keep existing images.
+                    </p>
+                  </div>
+                )}
+
                 <input
                   type="file"
                   accept="image/*"
@@ -359,13 +458,13 @@ export default function AdminProducts() {
                 </div>
               )}
 
-              <button 
-                type="submit" 
-                className="btn btn-primary" 
+              <button
+                type="submit"
+                className="btn btn-primary"
                 style={{ marginTop: '1rem' }}
                 disabled={uploading}
               >
-                {uploading ? 'Creating...' : 'Create Product'}
+                {uploading ? (editingProduct ? 'Updating...' : 'Creating...') : (editingProduct ? 'Update Product' : 'Create Product')}
               </button>
             </form>
           </div>
@@ -406,8 +505,8 @@ export default function AdminProducts() {
                     <tr key={product._id} style={{ borderTop: '1px solid #e5e7eb' }}>
                       <td style={{ padding: '1rem' }}>
                         {product.images && product.images.length > 0 ? (
-                          <img 
-                            src={product.images[0]} 
+                          <img
+                            src={product.images[0]}
                             alt={product.name}
                             style={{
                               width: '60px',
@@ -439,18 +538,32 @@ export default function AdminProducts() {
                       <td style={{ padding: '1rem', fontWeight: '500' }}>${product.price}</td>
                       <td style={{ padding: '1rem' }}>{product.stock}</td>
                       <td style={{ padding: '1rem' }}>
-                        <button
-                          onClick={() => handleDelete(product._id)}
-                          className="btn"
-                          style={{
-                            backgroundColor: '#ef4444',
-                            color: 'white',
-                            padding: '0.5rem 1rem',
-                            fontSize: '0.875rem',
-                          }}
-                        >
-                          Delete
-                        </button>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button
+                            onClick={() => handleEdit(product)}
+                            className="btn"
+                            style={{
+                              backgroundColor: '#3b82f6',
+                              color: 'white',
+                              padding: '0.5rem 1rem',
+                              fontSize: '0.875rem',
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(product._id)}
+                            className="btn"
+                            style={{
+                              backgroundColor: '#ef4444',
+                              color: 'white',
+                              padding: '0.5rem 1rem',
+                              fontSize: '0.875rem',
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

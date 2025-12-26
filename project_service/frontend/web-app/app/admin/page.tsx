@@ -16,7 +16,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     // Check if user is admin
-    const userStr = localStorage.getItem('user');
+    const userStr = sessionStorage.getItem('user');
     if (!userStr) {
       router.push('/login');
       return;
@@ -24,7 +24,7 @@ export default function AdminDashboard() {
 
     const userData = JSON.parse(userStr);
     if (userData.role !== 'admin') {
-    console.log(userData);
+      console.log(userData);
       router.push('/');
       return;
     }
@@ -54,8 +54,8 @@ export default function AdminDashboard() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
     router.push('/login');
   };
 

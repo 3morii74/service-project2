@@ -11,7 +11,7 @@ const api = axios.create({
 
 // Add token to requests if available
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -24,6 +24,9 @@ export const authApi = {
     api.post('/auth/register', data),
   login: (data: { email: string; password: string }) =>
     api.post('/auth/login', data),
+  getProfile: () => api.get('/auth/profile'),
+  updateProfile: (data: any) => api.put('/auth/profile', data),
+  changePassword: (data: any) => api.put('/auth/password', data),
 };
 
 // User APIs
@@ -96,7 +99,7 @@ export const managementApi = {
   updateSlider: (id: string, data: any) => api.put(`/management/sliders/${id}`, data),
   deleteSlider: (id: string) => api.delete(`/management/sliders/${id}`),
   reorderSlider: (id: string, order: number) => api.put(`/management/sliders/${id}/reorder`, { order }),
-  
+
   // Section APIs
   getActiveSections: () => api.get('/management/sections'),
   getAllSections: () => api.get('/management/sections/all'),

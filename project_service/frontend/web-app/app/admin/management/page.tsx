@@ -21,9 +21,10 @@ export default function AdminManagement() {
   const [imagePreview, setImagePreview] = useState<string>('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [editingSlider, setEditingSlider] = useState<any>(null); // Track slider being edited
 
   useEffect(() => {
-    const userStr = localStorage.getItem('user');
+    const userStr = sessionStorage.getItem('user');
     if (!userStr) {
       router.push('/login');
       return;
@@ -63,6 +64,20 @@ export default function AdminManagement() {
     reader.readAsDataURL(file);
   };
 
+  const handleEdit = (slider: any) => {
+    setEditingSlider(slider);
+    setFormData({
+      title: slider.title,
+      description: slider.description || '',
+      link: slider.link || '',
+      order: slider.order,
+    });
+    // Don't set preview for existing image - we'll show it separately
+    setSelectedFile(null);
+    setImagePreview('');
+    setShowForm(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -73,28 +88,43 @@ export default function AdminManagement() {
       let imagePath = '';
 
       if (selectedFile) {
+        // Upload new image
         const fileList = new DataTransfer();
         fileList.items.add(selectedFile);
         const uploadResponse = await uploadApi.uploadImages(fileList.files);
         imagePath = uploadResponse.data.data.paths[0];
+      } else if (editingSlider) {
+        // Keep existing image if no new image selected
+        imagePath = editingSlider.image || '';
       }
 
-      await managementApi.createSlider({
+      const sliderData = {
         title: formData.title,
         description: formData.description,
         link: formData.link,
         image: imagePath,
         order: parseInt(formData.order.toString()),
-      });
+      };
 
-      setSuccess('Slider created successfully!');
+      if (editingSlider) {
+        // Update existing slider
+        await managementApi.updateSlider(editingSlider._id, sliderData);
+        setSuccess('Slider updated successfully!');
+      } else {
+        // Create new slider
+        await managementApi.createSlider(sliderData);
+        setSuccess('Slider created successfully!');
+      }
+
+      // Reset form
       setFormData({ title: '', description: '', link: '', order: sliders.length });
       setSelectedFile(null);
       setImagePreview('');
+      setEditingSlider(null);
       setShowForm(false);
       loadSliders();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create slider');
+      setError(err.response?.data?.message || `Failed to ${editingSlider ? 'update' : 'create'} slider`);
     } finally {
       setUploading(false);
     }
@@ -165,7 +195,21 @@ export default function AdminManagement() {
         )}
 
         <div style={{ marginBottom: '2rem' }}>
-          <button onClick={() => setShowForm(!showForm)} className="btn btn-primary">
+          <button
+            onClick={() => {
+              if (showForm) {
+                // Cancel - reset everything
+                setShowForm(false);
+                setEditingSlider(null);
+                setFormData({ title: '', description: '', link: '', order: sliders.length });
+                setSelectedFile(null);
+                setImagePreview('');
+              } else {
+                setShowForm(true);
+              }
+            }}
+            className="btn btn-primary"
+          >
             {showForm ? 'Cancel' : '+ Add New Slider'}
           </button>
         </div>
@@ -173,7 +217,7 @@ export default function AdminManagement() {
         {showForm && (
           <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '0.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '2rem' }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1.5rem' }}>
-              Add New Slider
+              {editingSlider ? 'Edit Slider' : 'Add New Slider'}
             </h2>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
@@ -220,14 +264,32 @@ export default function AdminManagement() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Slider Image *</label>
+                <label className="form-label">Slider Image {!editingSlider && '*'}</label>
+
+                {/* Show existing image when editing */}
+                {editingSlider && editingSlider.image && !selectedFile && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+                      Current Image:
+                    </p>
+                    <img
+                      src={editingSlider.image}
+                      alt="Current slider"
+                      style={{ width: '100%', maxWidth: '600px', height: 'auto', borderRadius: '0.5rem', border: '2px solid #e5e7eb' }}
+                    />
+                    <p style={{ fontSize: '0.75rem', color: '#6b7280', fontStyle: 'italic', marginTop: '0.5rem' }}>
+                      Upload a new image below to replace, or leave empty to keep current image.
+                    </p>
+                  </div>
+                )}
+
                 <input
                   type="file"
                   accept="image/*"
                   onChange={handleFileSelect}
                   className="form-input"
                   style={{ padding: '0.5rem' }}
-                  required
+                  required={!editingSlider}
                 />
               </div>
 
@@ -242,7 +304,7 @@ export default function AdminManagement() {
               )}
 
               <button type="submit" className="btn btn-primary" style={{ marginTop: '1rem' }} disabled={uploading}>
-                {uploading ? 'Creating...' : 'Create Slider'}
+                {uploading ? (editingSlider ? 'Updating...' : 'Creating...') : (editingSlider ? 'Update Slider' : 'Create Slider')}
               </button>
             </form>
           </div>
@@ -290,6 +352,13 @@ export default function AdminManagement() {
                       </p>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <button
+                        onClick={() => handleEdit(slider)}
+                        className="btn"
+                        style={{ backgroundColor: '#3b82f6', color: 'white', padding: '0.5rem 1rem', fontSize: '0.875rem' }}
+                      >
+                        Edit
+                      </button>
                       <button
                         onClick={() => toggleActive(slider._id, slider.isActive)}
                         className="btn"

@@ -15,7 +15,7 @@ export default function UsersManagement() {
 
   useEffect(() => {
     // Check if user is admin
-    const userStr = localStorage.getItem('user');
+    const userStr = sessionStorage.getItem('user');
     if (!userStr) {
       router.push('/login');
       return;
@@ -49,9 +49,9 @@ export default function UsersManagement() {
       showToast({ message: 'User deleted successfully!', type: 'success' });
       loadUsers();
     } catch (err: any) {
-      showToast({ 
-        message: err.response?.data?.message || 'Failed to delete user', 
-        type: 'error' 
+      showToast({
+        message: err.response?.data?.message || 'Failed to delete user',
+        type: 'error'
       });
     }
   };
